@@ -11,9 +11,8 @@ function Home() {
 
   return (
     <>
-    
-      <div>
-        <h1>Movies</h1>
+      <div className="mx-5">
+        <h1 className="text-2xl font-bold mt-5 pt-4 ps-4">Top Movies</h1>
         <Movies movies={movies} />
       </div>
     </>

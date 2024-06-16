@@ -1,38 +1,87 @@
-import PropTypes from 'prop-types';
-import { useParams } from 'react-router-dom';
-import { useContext, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
+import { useContext, useEffect, useState } from "react";
 import MovieContext from "../context/movieContext";
+import { FaSpinner } from "react-icons/fa";
 
 const MovieDetails = () => {
   const { id } = useParams();
-  const { Movies: movies,GetAllMovies } = useContext(MovieContext);
+  const { Movies: movies, GetAllMovies } = useContext(MovieContext);
+  const [backgroundImageLoading, setBackgroundImageLoading] = useState(true);
 
   useEffect(() => {
     GetAllMovies();
   }, []);
 
-  console.log(movies)
-  const movie = movies.find(movie => movie.id == parseInt(id));
+  useEffect(() => {
+    if (!movies || movies.length === 0) {
+      return;
+    }
 
-  if (!movie) return <div>Movie not found</div>;
+    const movie = movies.find((movie) => movie.id === parseInt(id));
+
+    if (movie) {
+      const img = new Image();
+      img.onload = () => {
+        setBackgroundImageLoading(false);
+        document.body.style.backgroundImage = `url(${movie.backgroundImageUrl})`;
+        document.body.style.backgroundSize = "cover";
+        document.body.style.backgroundPosition = "center";
+        document.body.style.backgroundRepeat = "no-repeat";
+      };
+      img.src = movie.backgroundImageUrl;
+    }
+
+    return () => {
+      document.body.style.backgroundImage = "";
+    };
+  }, [movies, id]);
+
+  if (backgroundImageLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <FaSpinner className="animate-spin text-4xl text-gray-500" />
+      </div>
+    );
+  }
+
+  if (!movies || movies.length === 0) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <FaSpinner className="animate-spin text-4xl text-gray-500" />
+      </div>
+    ); // Handle edge case where movies are still loading
+  }
+
+  const movie = movies.find((movie) => movie.id === parseInt(id));
+
+  if (!movie) {
+    return <div>Movie not found</div>;
+  }
 
   return (
-    <div className="p-4">
-      <div className="flex-none w-64 bg-white rounded-lg shadow-lg">
-        <img src={movie.posterUrl} alt={movie.title} className="w-full h-auto rounded-t-lg" />
-        <div className="p-4">
-          <h1>id</h1>
-          <h2 className="text-lg font-bold mb-2">{movie.title}</h2>
-          <p className="text-gray-600">{movie.genre.join(', ')}</p>
-          <p className="text-gray-700 mt-2">{movie.description}</p>
+    <div className="flex">
+      <div className="movie-details mr-8 m-10">
+        <h1 className="text-8xl font-bold text-white">{movie.title}</h1>
+        <p className="text-1xl text-gray-200">
+          {movie.duration} | {movie.rating}⭐
+        </p>
+        <div className="mt-2 max-h-24 overflow-hidden w-full sm:w-3/4 md:w-1/2 lg:w-1/3">
+          <p className="text-white">{movie.synopsis}</p>
+        </div>
+        <div className="text-gray-200 mt-2">
+          Director :{" "}
+          <span className="text-white font-bold">{movie.director}</span>
+        </div>
+        <div>
+          <Link key={movie.id} to={`/BookTickets/${movie.id}`}>
+            <button className="mt-4 bg-gradient-custom text-white font-bold text-1.5xl px-5 py-2 rounded-md">
+              Get Tickets
+            </button>
+          </Link>
         </div>
       </div>
     </div>
   );
-};
-
-MovieDetails.propTypes = {
-  movies: PropTypes.arrayOf(PropTypes.object).isRequired,
 };
 
 export default MovieDetails;
