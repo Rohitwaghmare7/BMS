@@ -1,161 +1,197 @@
 const express = require('express');
 const router = express.Router();
 const Movie = require('../models/Movie');
-const User = require('../models/User');
-const fetchUser = require("../middleware/fetchUser");
-const { body, validationResult } = require("express-validator");
+const { body, validationResult, query } = require('express-validator');
 
+// Fetch All Movies
+router.get('/allMovies', async (req, res) => {
+    try {
+        const movies = await Movie.find().sort({ createdAt: -1 });
+        res.json(movies);
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send('Some Error Occurred');
+    }
+});
+
+// Add a Movie
 router.post(
-    "/createpost",
-    fetchUser,
+    '/addMovie',
     [
-      body("content", "Content must be at least 5 characters long").isLength({ min: 5 }),
-      // Add validation for other fields if needed
+        body('id').isNumeric(),
+        body('title').not().isEmpty(),
+        body('genre').isArray(),
+        body('language').not().isEmpty(),
+        body('duration').not().isEmpty(),
+        body('releaseDate').isDate(),
+        body('synopsis').not().isEmpty(),
+        body('cast').isArray(),
+        body('director').not().isEmpty(),
+        body('rating').isNumeric(),
+        body('posterUrl').isURL(),
+        body('backgroundImageUrl').isURL(),
+        body('theaters').isArray()
     ],
     async (req, res) => {
-      try {
-        const { content, imageUrl } = req.body;
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-          return res.status(400).json({ errors: errors.array() });
+            return res.status(400).json({ errors: errors.array() });
         }
-  
-        const user = await User.findById(req.user.id);
-        const username = user.username;
 
-        const post = new Post({ content, imageUrl, userId: req.user.id, username });
-        const savedPost = await post.save();
-        res.json(savedPost);
-      } catch (error) {
-        console.error(error.message);
-        res.status(500).send("Some Error Occurred");
-      }
+        try {
+            const {
+                id, title, genre, language, duration, releaseDate, synopsis, cast,
+                director, rating, posterUrl, backgroundImageUrl, theaters
+            } = req.body;
+
+            let movie = new Movie({
+                id, title, genre, language, duration, releaseDate, synopsis, cast,
+                director, rating, posterUrl, backgroundImageUrl, theaters
+            });
+
+            movie = await movie.save();
+            res.json(movie);
+        } catch (error) {
+            console.error(error.message);
+            res.status(500).send('Some Error Occurred');
+        }
     }
 );
 
+// Remove a Movie by ID
+router.delete(
+    '/removeMovie',
+    [query('id').isNumeric()],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
 
-// Fetch All Posts
-router.get('/allMovies', async (req, res) => {
-    try {
-        const posts = await Movie.find().sort({ createdAt: -1 });
-        res.json(posts);
-    } catch (error) {
-        console.error(error.message);
-        res.status(500).send("Some Error Occurred");
+        try {
+            const movie = await Movie.findOneAndDelete({ id: req.query.id });
+            if (!movie) {
+                return res.status(404).json({ msg: 'Movie not found' });
+            }
+            res.json({ msg: 'Movie removed successfully' });
+        } catch (error) {
+            console.error(error.message);
+            res.status(500).send('Some Error Occurred');
+        }
     }
-});
+);
 
-// Update Post
-router.put('/updatepost/:postId', fetchUser, async (req, res) => {
-    try {
-        const { content, imageUrl } = req.body;
-        let post = await Post.findById(req.params.postId);
-        if (!post) {
-            return res.status(404).send("Post not found");
+// Add a Screen to a Theater
+router.put(
+    '/addScreenToTheater',
+    [
+      body('movieId').isNumeric(),
+      body('theaterName').not().isEmpty(),
+      body('screenName').not().isEmpty(),
+      body('showtimes').isArray(),
+      body('showtimes.*.time').not().isEmpty(),
+      body('showtimes.*.seats').isArray()
+    ],
+    async (req, res) => {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+  
+      try {
+        const { movieId, theaterName, screenName, showtimes } = req.body;
+  
+        // Find the movie and theater
+        const movie = await Movie.findOne({ id: movieId });
+        if (!movie) {
+          return res.status(404).json({ msg: 'Movie not found' });
         }
-        if (post.userId.toString() !== req.user.id) {
-            return res.status(401).send("Not allowed to update this post");
+  
+        const theaterIndex = movie.theaters.findIndex((theater) => theater.name === theaterName);
+        if (theaterIndex === -1) {
+          return res.status(404).json({ msg: 'Theater not found for this movie' });
         }
-        post.content = content;
-        post.imageUrl = imageUrl;
-        const updatedPost = await post.save();
-        res.json(updatedPost);
-    } catch (error) {
-        console.error(error.message);
-        res.status(500).send("Some Error Occurred");
-    }
-});
-
-// Delete Post
-router.delete('/deletepost/:postId', fetchUser, async (req, res) => {
-    try {
-        const post = await Post.findById(req.params.postId);
-        if (!post) {
-            return res.status(404).send("Post not found");
+  
+        // Check if the screen already exists
+        const existingScreen = movie.theaters[theaterIndex].showtimes.find(
+          (showtime) => showtime.screen === screenName
+        );
+        if (existingScreen) {
+          return res.status(400).json({ msg: 'Screen already exists in this theater' });
         }
-        if (post.userId.toString() !== req.user.id) {
-            return res.status(401).send("Not allowed to delete this post");
-        }
-        await post.remove();
-        res.json({ message: "Post deleted successfully" });
-    } catch (error) {
-        console.error(error.message);
-        res.status(500).send("Some Error Occurred");
-    }
-});
-
-// Fetch User Specific Posts
-router.get('/userposts', fetchUser, async (req, res) => {
-    try {
-        const userPosts = await Post.find({ userId: req.user.id }).sort({ createdAt: -1 });
-        res.json(userPosts);
-    } catch (error) {
-        console.error(error.message);
-        res.status(500).send("Some Error Occurred");
-    }
-});
-
-
-// Like Post
-router.post('/postlike/:postId/like', fetchUser, async (req, res) => {
-    try {
-        const post = await Post.findById(req.params.postId);
-        if (!post) {
-            return res.status(404).send("Post not found");
-        }
-        // Check if the post is already liked by the user
-        if (post.likes.includes(req.user.id)) {
-            return res.status(400).send("Post already liked by the user");
-        }
-        post.likes.push(req.user.id);
-        await post.save();
-        res.json({ message: "Post liked successfully" });
-    } catch (error) {
-        console.error(error.message);
-        res.status(500).send("Some Error Occurred");
-    }
-});
-
-// Dislike Post
-router.post('/dislikepost/:postId/dislike', fetchUser, async (req, res) => {
-    try {
-        const post = await Post.findById(req.params.postId);
-        if (!post) {
-            return res.status(404).send("Post not found");
-        }
-        // Check if the post is already liked by the user
-        if (!post.likes.includes(req.user.id)) {
-            return res.status(400).send("Post is not liked by the user");
-        }
-        // Remove the user's ID from the likes array to dislike the post
-        post.likes = post.likes.filter(userId => userId.toString() !== req.user.id);
-        await post.save();
-        res.json({ message: "Post disliked successfully" });
-    } catch (error) {
-        console.error(error.message);
-        res.status(500).send("Some Error Occurred");
-    }
-});
-
-// Add Comment
-router.post('/addcomment/:postId/comments', fetchUser, async (req, res) => {
-    try {
-        const { content } = req.body;
-        const post = await Post.findById(req.params.postId);
-        if (!post) {
-            return res.status(404).send("Post not found");
-        }
-        const newComment = {
-            userId: req.user.id,
-            content
+  
+        // Create the new screen and showtimes
+        const newScreen = {
+          name: screenName,
+          showtimes: showtimes.map((showtime) => ({
+            time: showtime.time,
+            screen: screenName,
+            seats: showtime.seats.map(() => ({ isBooked: false, bookedBy: '' }))
+          }))
         };
-        post.comments.push(newComment);
-        await post.save();
-        res.json({ message: "Comment added successfully" });
-    } catch (error) {
+  
+        // Add the new screen to the theater
+        movie.theaters[theaterIndex].showtimes.push(...newScreen.showtimes);
+  
+        // Save the updated movie
+        await movie.save();
+  
+        res.json({ msg: 'Screen added successfully' });
+      } catch (error) {
         console.error(error.message);
-        res.status(500).send("Some Error Occurred");
+        res.status(500).send('Some Error Occurred');
+      }
     }
-});
+  );
+
+  // Remove a Screen from a Theater
+router.put(
+    '/removeScreenFromTheater',
+    [
+        body('movieId').isNumeric(),
+        body('theaterName').not().isEmpty(),
+        body('screenName').not().isEmpty(),
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        try {
+            const { movieId, theaterName, screenName } = req.body;
+
+            // Find the movie
+            const movie = await Movie.findOne({ id: movieId });
+            if (!movie) {
+                return res.status(404).json({ msg: 'Movie not found' });
+            }
+
+            // Find the theater in the movie
+            const theaterIndex = movie.theaters.findIndex(theater => theater.name === theaterName);
+            if (theaterIndex === -1) {
+                return res.status(404).json({ msg: 'Theater not found for this movie' });
+            }
+
+            // Find the screen in the theater
+            const screenIndex = movie.theaters[theaterIndex].showtimes.findIndex(showtime => showtime.screen === screenName);
+            if (screenIndex === -1) {
+                return res.status(404).json({ msg: 'Screen not found in this theater' });
+            }
+
+            // Remove the screen from the theater
+            movie.theaters[theaterIndex].showtimes.splice(screenIndex, 1);
+
+            // Save the updated movie
+            await movie.save();
+
+            res.json({ msg: 'Screen removed successfully' });
+        } catch (error) {
+            console.error(error.message);
+            res.status(500).send('Some Error Occurred');
+        }
+    }
+);
+
 
 module.exports = router;

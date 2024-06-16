@@ -3,16 +3,41 @@ const Schema = mongoose.Schema;
 
 const showtimeSchema = new Schema({
     time: {
-        type: Date,
+        type: String,  
         required: true
     },
-    seats: {
-        type: [Boolean],
-        default: Array(60).fill(false)
-    }
+    screen: {
+        type: String,
+        required: true
+    },
+    seats: [
+        {
+            isBooked: {
+                type: Boolean,
+                default: false
+            },
+            bookedBy: {
+                type: String,
+                default: ''
+            }
+        }
+    ]
+});
+
+const theaterSchema = new Schema({
+    name: {
+        type: String,
+        required: true
+    },
+    showtimes: [showtimeSchema] 
 });
 
 const movieSchema = new Schema({
+    id: {
+        type: Number,
+        required: true,
+        unique: true // Ensure the ID is unique
+    },
     title: {
         type: String,
         required: true
@@ -28,7 +53,7 @@ const movieSchema = new Schema({
         required: true
     },
     duration: {
-        type: String,
+        type: String, 
         required: true
     },
     releaseDate: {
@@ -57,8 +82,13 @@ const movieSchema = new Schema({
         type: String,
         required: true
     },
-    showtimes: [showtimeSchema]
+    backgroundImageUrl: {
+        type: String,
+        required: true
+    },
+    theaters: [theaterSchema]  
 });
 
 const Movie = mongoose.model('Movie', movieSchema);
+
 module.exports = Movie;

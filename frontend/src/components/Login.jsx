@@ -1,58 +1,64 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Alert from "./Alert";
 import "../login&signup.css";
+import Notification from "./Alert";
 
 function Login() {
-  const [alert, setAlert] = useState(null);
-  const showAlert = (message, type) => {
-    setAlert({
-      msg: message,
-      type: type,
-    });
-    setTimeout(() => {
-      setAlert(null);
-    }, 1500);
-  };
-
-  let navigate = useNavigate();
-
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
+  const [notification, setNotification] = useState(null);
+  const navigate = useNavigate();
 
   const handleSignIn = async (e) => {
     e.preventDefault();
-    const response = await fetch("http://localhost:5000/api/users/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email: signInEmail, password: signInPassword }),
-    });
-    const json = await response.json();
-    console.log(json);
-    if (json.success) {
-      localStorage.setItem("token", json.authToken);
-      showAlert("Logged in Successfully", "success");
-      navigate("/home");
-    } else {
-      showAlert(json.error, "danger");
+    try {
+      const response = await fetch("https://movie-booking-backend-theta.vercel.app/api/users/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: signInEmail, password: signInPassword }),
+      });
+      const json = await response.json();
+      console.log(json);
+      if (json.success) {
+        localStorage.setItem("token", json.authToken);
+        showNotification("Logged in Successfully", "success");
+
+
+        if (signInEmail === "admin@example.com" && signInPassword === "adminPassword") {
+          navigate("/AdminHome"); 
+        } else {
+          navigate("/home"); 
+        }
+      } else {
+        showNotification(json.error || "Login failed. Please check your credentials.", "error");
+      }
+    } catch (error) {
+      console.error("Error logging in:", error);
+      showNotification("Error logging in. Please try again later.", "error");
     }
+  };
+
+  const showNotification = (message, type) => {
+    setNotification({ message, type });
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000); // Clear notification after 3 seconds
   };
 
   return (
     <>
       <div className="gradient-background flex justify-start items-center min-h-screen">
-        <Alert alert={alert} />
         <div className="flex flex-col justify-center px-6 py-12 lg:px-8 w-full max-w-screen-xl mx-auto">
-        <div className="sm:w-full sm:max-w-sm">
+          <div className="sm:w-full sm:max-w-sm">
             <h1 className="text-5xl font-bold text-center text-gradient">
               BMS
             </h1>
 
             <h2 className="mt-2 text-center text-2xl font-bold leading-9 tracking-tight text-white">
-              Create your account
+              Login to your account
             </h2>
           </div>
 
@@ -88,12 +94,12 @@ function Login() {
                     Password
                   </label>
                   <div className="text-sm">
-                    <a
-                      href="#"
+                    <Link
+                      to="/forgotPassword"
                       className="font-semibold text-indigo-600 hover:text-indigo-500"
                     >
                       Forgot password?
-                    </a>
+                    </Link>
                   </div>
                 </div>
                 <div className="mt-2">
@@ -111,7 +117,7 @@ function Login() {
               </div>
 
               <div className="mt-6">
-              <button
+                <button
                   type="submit"
                   className="flex w-full justify-center rounded-md bg-gradient-custom px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-gradient-custom focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                 >
@@ -132,6 +138,14 @@ function Login() {
           </div>
         </div>
       </div>
+
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
     </>
   );
 }

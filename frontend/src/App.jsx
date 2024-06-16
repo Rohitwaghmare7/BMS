@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import BookTickets from "./components/BookTickets";
 import SeatSelection from "./components/SeatSelection";
 import Checkout from "./components/Checkout";
+import AdminHome from "./Admin/AdminHome";
 
 function App() {
   const location = useLocation();
@@ -36,6 +37,7 @@ function App() {
           <Route path="/BookTickets/:id" element={<BookTickets/>}></Route>
           <Route path="/seat-selection/:theaterName/:screenName/:showtime" element={<SeatSelection />} />
           <Route path="/checkout/:theaterName/:screenName/:showtime" element={<Checkout />} />
+          <Route exact path="/AdminHome" element={<AdminHome />}></Route>
         </Routes>
       </MovieState>
     </>
